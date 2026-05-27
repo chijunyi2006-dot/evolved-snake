@@ -1,7 +1,7 @@
 # Evolved Snake - 斷尾流貪吃蛇
 
 ## Vercel Link
-👉 [請在此貼上你的 Vercel 部署網址](https://你的專案名稱.vercel.app)
+evolved-snake-liard.vercel.app
 
 ## Design Concept
 本作品打破了傳統貪食蛇「只能變長、撞擊自己的身體就去世」的規則，核心理念是創造一個「高風險、高報酬」的動態策略戰場。
