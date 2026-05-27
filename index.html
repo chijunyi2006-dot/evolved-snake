@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>斷尾流貪食蛇 </title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: background-color 0.5s ease;
+        }
+
+        body.mode-red {
+            background-color: #fff1f0;
+        }
+        body.mode-blue {
+            background-color: #e6f7ff;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 1. 上方資訊列樣式 */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 400px;
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .score-box {
+            display: flex;
+            gap: 15px;
+        }
+
+        .status-badge {
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+        .status-badge.red {
+            background-color: #ff4d4f;
+        }
+        .status-badge.blue {
+            background-color: #1890ff;
+        }
+
+        /* 2. 中間遊戲畫布樣式 */
+        canvas {
+            background-color: #2d3748; 
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-radius: 6px;
+            display: block;
+            cursor: pointer;
+            border: 4px solid #2d3748;
+            transition: border-color 0.5s ease;
+        }
+        canvas.border-red {
+            border-color: #ff4d4f;
+        }
+        canvas.border-blue {
+            border-color: #1890ff;
+        }
+
+        /* 3. 下方長度列樣式 */
+        .bottom-bar {
+            width: 400px;
+            margin-top: 15px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #4a5568;
+            background: rgba(255, 255, 255, 0.6);
+            padding: 8px 0;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <div class="top-bar">
+            <div class="score-box">
+                <div id="scoreDisplay">得分: 0</div>
+                <div id="highScoreDisplay" style="color: #718096;">最高得分: 0</div>
+            </div>
+            <div class="status">
+                <span id="statusBadge" class="status-badge red">【紅色時間】倒數 7 秒</span>
+            </div>
+        </div>
+
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+        <div id="lengthDisplay" class="bottom-bar">目前長度: 4</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const highScoreDisplay = document.getElementById('highScoreDisplay');
+        const lengthDisplay = document.getElementById('lengthDisplay'); // 抓取下方的長度欄位
+        const statusBadge = document.getElementById('statusBadge');
+
+        const gridSize = 20;
+        let score = 0;
+        let highScore = 0; 
+        let gameState = 'START'; 
+        
+        let currentMode = 'RED'; 
+        let modeTimeLeft = 7;     
+
+        let gameInterval;
+        let modeInterval;
+
+        let snakeSegments = []; 
+        let bodyColors = [];    
+        
+        let apple = { x: 0, y: 0 };
+        let dx = gridSize;
+        let dy = 0;
+        let nextDirection = { dx: gridSize, dy: 0 };
+
+        window.addEventListener('keydown', handleKeyDown);
+        canvas.addEventListener('click', handleCanvasClick);
+
+        resetGameData();
+        gameState = 'START';
+        draw();
+
+        function resetGameData() {
+            score = 0;
+            currentMode = 'RED';
+            modeTimeLeft = 7;
+            dx = gridSize;
+            dy = 0;
+            nextDirection = { dx: gridSize, dy: 0 };
+
+            snakeSegments = [
+                { x: 160, y: 100 },
+                { x: 140, y: 100 },
+                { x: 120, y: 100 },
+                { x: 100, y: 100 }
+            ];
+
+            bodyColors = ['#ff4d4f', '#1890ff', '#ff4d4f'];
+
+            scoreDisplay.textContent = `得分: ${score}`;
+            highScoreDisplay.textContent = `最高得分: ${highScore}`;
+            lengthDisplay.textContent = `目前長度: ${snakeSegments.length}`; // 初始長度重設
+            updateUIEffects();
+            generateApple();
+        }
+
+        function startGame() {
+            gameState = 'PLAYING';
+            gameInterval = setInterval(gameLoop, 150);
+            modeInterval = setInterval(updateModeTimer, 1000);
+        }
+
+        function stopTimers() {
+            clearInterval(gameInterval);
+            clearInterval(modeInterval);
+        }
+
+        function gameLoop() {
+            if (gameState !== 'PLAYING') return;
+
+            dx = nextDirection.dx;
+            dy = nextDirection.dy;
+
+            const nextX = snakeSegments[0].x + dx;
+            const nextY = snakeSegments[0].y + dy;
+
+            if (nextX < 0 || nextX >= canvas.width || nextY < 0 || nextY >= canvas.height) {
+                triggerGameOver();
+                return;
+            }
+
+            // 2. 身體碰撞偵測（最新階梯加分版）
+            for (let i = 1; i < snakeSegments.length; i++) {
+                if (nextX === snakeSegments[i].x && nextY === snakeSegments[i].y) {
+                    const hitColor = bodyColors[i - 1];
+
+                    if ((currentMode === 'RED' && hitColor === '#ff4d4f') || 
+                        (currentMode === 'BLUE' && hitColor === '#1890ff')) {
+                        
+                        const lostCount = snakeSegments.length - i;
+                        
+                        let bonusScore = 0;
+                        if (lostCount >= 1 && lostCount <= 10) {
+                            bonusScore = lostCount * 1;
+                        } else if (lostCount <= 20) {
+                            bonusScore = lostCount * 2;
+                        } else if (lostCount <= 30) { 
+                            bonusScore = lostCount * 3;
+                        } else if (lostCount <= 40) {
+                            bonusScore = lostCount * 4;
+                        }else if (lostCount <= 50) {
+                            bonusScore = lostCount * 5;
+                        }else if (lostCount <= 60) {
+                            bonusScore = lostCount * 6;
+                        }
+                        
+                        score += bonusScore;
+                        scoreDisplay.textContent = `得分: ${score}`;
+                        
+                        if (score > highScore) {
+                            highScore = score;
+                            highScoreDisplay.textContent = `最高得分: ${highScore}`;
+                        }
+
+                        snakeSegments = snakeSegments.slice(0, i);
+                        bodyColors = bodyColors.slice(0, i - 1);
+                        break; 
+                    } else {
+                        triggerGameOver();
+                        return;
+                    }
+                }
+            }
+
+            // 3. 移動與吃蘋果邏輯
+            if (nextX === apple.x && nextY === apple.y) {
+                score++;
+                scoreDisplay.textContent = `得分: ${score}`;
+                
+                if (score > highScore) {
+                    highScore = score;
+                    highScoreDisplay.textContent = `最高得分: ${highScore}`;
+                }
+                
+                const newColor = Math.random() < 0.5 ? '#ff4d4f' : '#1890ff';
+                snakeSegments.unshift({ x: nextX, y: nextY });
+                bodyColors.unshift(newColor);
+                generateApple();
+            } else {
+                snakeSegments.unshift({ x: nextX, y: nextY });
+                snakeSegments.pop();
+            }
+
+            // 在每一輪遊戲循環結束前，即時更新下方的長度
+            lengthDisplay.textContent = `目前長度: ${snakeSegments.length}`;
+
+            draw();
+        }
+
+        function generateApple() {
+            let valid = false;
+            while (!valid) {
+                const cols = canvas.width / gridSize;
+                const rows = canvas.height / gridSize;
+                apple.x = Math.floor(Math.random() * cols) * gridSize;
+                apple.y = Math.floor(Math.random() * rows) * gridSize;
+
+                valid = !snakeSegments.some(part => part.x === apple.x && part.y === apple.y);
+            }
+        }
+
+        function updateModeTimer() {
+            if (gameState !== 'PLAYING') return;
+
+            modeTimeLeft--;
+            if (modeTimeLeft <= 0) {
+                currentMode = (currentMode === 'RED') ? 'BLUE' : 'RED';
+                modeTimeLeft = 7;
+                updateUIEffects();
+            }
+            
+            if (currentMode === 'RED') {
+                statusBadge.textContent = `【紅色時間】倒數 ${modeTimeLeft} 秒`;
+            } else {
+                statusBadge.textContent = `【藍色時間】倒數 ${modeTimeLeft} 秒`;
+            }
+        }
+
+        function updateUIEffects() {
+            if (currentMode === 'RED') {
+                document.body.className = 'mode-red';
+                canvas.className = 'border-red';
+                statusBadge.className = 'status-badge red';
+                statusBadge.textContent = `【紅色時間】倒數 ${modeTimeLeft} 秒`;
+            } else {
+                document.body.className = 'mode-blue';
+                canvas.className = 'border-blue';
+                statusBadge.className = 'status-badge blue';
+                statusBadge.textContent = `【藍色時間】倒數 ${modeTimeLeft} 秒`;
+            }
+        }
+
+        function triggerGameOver() {
+            gameState = 'GAMEOVER';
+            stopTimers();
+            draw();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. 繪製蘋果
+            ctx.font = `${gridSize}px Arial`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText('🍎', apple.x, apple.y);
+
+            // 2. 依序繪製蛇
+            snakeSegments.forEach((part, index) => {
+                if (index === 0) {
+                    ctx.font = `${gridSize}px Arial`;
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top';
+                    ctx.fillText('🐱', part.x, part.y);
+                } else {
+                    ctx.fillStyle = bodyColors[index - 1];
+                    ctx.fillRect(part.x, part.y, gridSize, gridSize);
+                    ctx.strokeStyle = '#2d3748';
+                    ctx.strokeRect(part.x, part.y, gridSize, gridSize);
+                }
+            });
+
+            if (gameState === 'START') {
+                drawOverlay('點擊畫面或按空白鍵開始遊戲', true);
+            } else if (gameState === 'GAMEOVER') {
+                drawOverlay(`Game Over! 最終得分: ${score}`, false);
+            }
+        }
+
+        function drawOverlay(titleText, isStart) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 20px "Segoe UI", Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle'; 
+            ctx.fillText(titleText, canvas.width / 2, canvas.height / 2 - 30);
+
+            const btnX = canvas.width / 2;
+            const btnY = canvas.height / 2 + 30;
+
+            if (isStart) {
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.moveTo(btnX - 15, btnY - 20);
+                ctx.lineTo(btnX - 15, btnY + 20);
+                ctx.lineTo(btnX + 20, btnY);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                const btnWidth = 130;
+                const btnHeight = 42;
+                const radius = 8; 
+                
+                const x = btnX - btnWidth / 2;
+                const y = btnY - btnHeight / 2;
+
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.moveTo(x + radius, y);
+                ctx.lineTo(x + btnWidth - radius, y);
+                ctx.arcTo(x + btnWidth, y, x + btnWidth, y + radius, radius);
+                ctx.lineTo(x + btnWidth, y + btnHeight - radius);
+                ctx.arcTo(x + btnWidth, y + btnHeight, x + btnWidth - radius, y + btnHeight, radius);
+                ctx.lineTo(x + radius, y + btnHeight);
+                ctx.arcTo(x, y + btnHeight, x, y + btnHeight - radius, radius);
+                ctx.lineTo(x, y + radius);
+                ctx.arcTo(x, y, x + radius, y, radius);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.fillStyle = '#2d3748';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle'; 
+                ctx.fillText('再玩一次', btnX, btnY);
+            }
+        }
+
+        function handleKeyDown(event) {
+            const keyPressed = event.key;
+
+            if (keyPressed === ' ' || keyPressed === 'Spacebar') {
+                event.preventDefault(); 
+                if (gameState === 'START') {
+                    startGame();
+                } else if (gameState === 'GAMEOVER') {
+                    resetGameData();
+                    startGame();
+                }
+                return;
+            }
+
+            if (gameState !== 'PLAYING') return;
+
+            const goingUp = (dy === -gridSize);
+            const goingDown = (dy === gridSize);
+            const goingRight = (dx === gridSize);
+            const goingLeft = (dx === -gridSize);
+
+            if ((keyPressed === 'a' || keyPressed === 'A' || keyPressed === 'ArrowLeft') && !goingRight) {
+                nextDirection = { dx: -gridSize, dy: 0 };
+            }
+            if ((keyPressed === 'd' || keyPressed === 'D' || keyPressed === 'ArrowRight') && !goingLeft) {
+                nextDirection = { dx: gridSize, dy: 0 };
+            }
+            if ((keyPressed === 'w' || keyPressed === 'W' || keyPressed === 'ArrowUp') && !goingDown) {
+                nextDirection = { dx: 0, dy: -gridSize };
+            }
+            if ((keyPressed === 's' || keyPressed === 'S' || keyPressed === 'ArrowDown') && !goingUp) {
+                nextDirection = { dx: 0, dy: gridSize };
+            }
+        }
+
+        function handleCanvasClick(event) {
+            const rect = canvas.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const clickY = event.clientY - rect.top;
+
+            if (gameState === 'START') {
+                startGame();
+            } else if (gameState === 'GAMEOVER') {
+                if (clickX >= 135 && clickX <= 265 && clickY >= 209 && clickY <= 251) {
+                    resetGameData();
+                    startGame();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
