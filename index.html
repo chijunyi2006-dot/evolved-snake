@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>斷尾流貪食蛇 </title>
+    <title>斷尾流貪吃蛇</title>
     <style>
         body {
             margin: 0;
@@ -25,13 +25,59 @@
             background-color: #e6f7ff;
         }
 
+        /* 核心三欄式佈局外層 */
+        .main-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 40px; /* 各欄之間的間距 */
+        }
+
+        /* 左側：遊戲說明與規則表格 */
+        .left-sidebar {
+            width: 250px;
+            color: #4a5568;
+            font-size: 13px;
+            line-height: 1.6;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .left-sidebar h3 {
+            margin-top: 0;
+            font-size: 14px;
+            color: #2d3748;
+            border-bottom: 1px solid #cbd5e0;
+            padding-bottom: 6px;
+        }
+
+        .rule-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .rule-table th, .rule-table td {
+            border: 1px solid #cbd5e0;
+            padding: 5px 8px;
+            text-align: left;
+        }
+
+        .rule-table th {
+            background-color: #edf2f7;
+            color: #2d3748;
+        }
+
+        /* 中間：原本完美的貪吃蛇主體 */
         .game-container {
             display: flex;
             flex-direction: column;
             align-items: center;
         }
 
-        /* 1. 上方資訊列樣式 */
         .top-bar {
             display: flex;
             justify-content: space-between;
@@ -61,7 +107,6 @@
             background-color: #1890ff;
         }
 
-        /* 2. 中間遊戲畫布樣式 */
         canvas {
             background-color: #2d3748; 
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -78,7 +123,6 @@
             border-color: #1890ff;
         }
 
-        /* 3. 下方長度列樣式 */
         .bottom-bar {
             width: 400px;
             margin-top: 15px;
@@ -91,24 +135,101 @@
             border-radius: 6px;
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
         }
+
+        /* 右側：即時分數浮現大字區 */
+        .right-sidebar {
+            width: 250px;
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            position: relative;
+        }
+
+        /* 大浮字動態特效 */
+        .popup-score {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2f855a; /* 預設吃蘋果用舒服的綠色大字 */
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            animation: floatUpFade 3s forwards;
+            position: absolute;
+        }
+
+        .popup-score.bonus {
+            color: #c53030; /* 斷尾用震撼的紅色大字 */
+            font-size: 32px;
+            text-shadow: 2px 2px 8px rgba(197, 48, 48, 0.3);
+        }
+
+        @keyframes floatUpFade {
+            0% {
+                opacity: 1;
+                transform: translateY(20px) scale(0.8);
+            }
+            10% {
+                transform: translateY(0px) scale(1.1);
+            }
+            20% {
+                transform: translateY(0px) scale(1);
+            }
+            70% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-40px);
+            }
+        }
     </style>
 </head>
 <body>
 
-    <div class="game-container">
-        <div class="top-bar">
-            <div class="score-box">
-                <div id="scoreDisplay">得分: 0</div>
-                <div id="highScoreDisplay" style="color: #718096;">最高得分: 0</div>
-            </div>
-            <div class="status">
-                <span id="statusBadge" class="status-badge red">【紅色時間】倒數 7 秒</span>
-            </div>
+    <div class="main-wrapper">
+        
+        <div class="left-sidebar">
+            <h3>🎮 遊戲說明</h3>
+            <p>可以斷尾的貪吃蛇!? 看準不同的背景顏色，去吃掉自己身體相同顏色的部分來賺取更高的分數吧!</p>
+            <p>用 W、A、S、D 或 方向鍵控制頭部的前進方向</p>
+            <h3>📜 得分計算規則</h3>
+            <table class="rule-table">
+                <thead>
+                    <tr>
+                        <th>消失身體節數</th>
+                        <th>得分計算方式</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>01 ~ 10 節</td><td>消失節數 X 1</td></tr>
+                    <tr><td>11 ~ 20 節</td><td>消失節數 X 2</td></tr>
+                    <tr><td>21 ~ 30 節</td><td>消失節數 X 3</td></tr>
+                    <tr><td>31 ~ 40 節</td><td>消失節數 X 4</td></tr>
+                    <tr><td>41 ~ 50 節</td><td>消失節數 X 5</td></tr>
+                    <tr><td>51 ~ 60 節</td><td>消失節數 X 6</td></tr>
+                    <tr><td>61 ~ &nbsp;&nbsp;&nbsp;節</td><td>消失節數 X 7</td></tr>
+                </tbody>
+            </table>
         </div>
 
-        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <div class="game-container">
+            <div class="top-bar">
+                <div class="score-box">
+                    <div id="scoreDisplay">分數: 0</div>
+                    <div id="highScoreDisplay" style="color: #718096;">最高分數: 0</div>
+                </div>
+                <div class="status">
+                    <span id="statusBadge" class="status-badge red">紅色時間 倒數 7 秒</span>
+                </div>
+            </div>
 
-        <div id="lengthDisplay" class="bottom-bar">目前長度: 4</div>
+            <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+            <div id="lengthDisplay" class="bottom-bar">目前長度: 4</div>
+        </div>
+
+        <div class="right-sidebar" id="popupContainer">
+            </div>
+
     </div>
 
     <script>
@@ -116,8 +237,9 @@
         const ctx = canvas.getContext('2d');
         const scoreDisplay = document.getElementById('scoreDisplay');
         const highScoreDisplay = document.getElementById('highScoreDisplay');
-        const lengthDisplay = document.getElementById('lengthDisplay'); // 抓取下方的長度欄位
+        const lengthDisplay = document.getElementById('lengthDisplay');
         const statusBadge = document.getElementById('statusBadge');
+        const popupContainer = document.getElementById('popupContainer'); // 抓取右側欄
 
         const gridSize = 20;
         let score = 0;
@@ -145,6 +267,23 @@
         gameState = 'START';
         draw();
 
+        // 【新增】觸發右側即時分數大字的動態函式
+        function showScorePopup(text, isBonus) {
+            // 每次觸發前清空右側舊的字，確保畫面上乾淨
+            popupContainer.innerHTML = '';
+
+            const popup = document.createElement('div');
+            popup.className = isBonus ? 'popup-score bonus' : 'popup-score';
+            popup.textContent = text;
+
+            popupContainer.appendChild(popup);
+
+            // 3秒鐘後，等 CSS 動畫播完，自動從網頁中移除這個物件
+            setTimeout(() => {
+                popup.remove();
+            }, 3000);
+        }
+
         function resetGameData() {
             score = 0;
             currentMode = 'RED';
@@ -162,9 +301,10 @@
 
             bodyColors = ['#ff4d4f', '#1890ff', '#ff4d4f'];
 
-            scoreDisplay.textContent = `得分: ${score}`;
-            highScoreDisplay.textContent = `最高得分: ${highScore}`;
-            lengthDisplay.textContent = `目前長度: ${snakeSegments.length}`; // 初始長度重設
+            scoreDisplay.textContent = `分數: ${score}`;
+            highScoreDisplay.textContent = `最高分數: ${highScore}`;
+            lengthDisplay.textContent = `目前長度: ${snakeSegments.length}`;
+            popupContainer.innerHTML = ''; // 清空右側大字
             updateUIEffects();
             generateApple();
         }
@@ -194,7 +334,7 @@
                 return;
             }
 
-            // 2. 身體碰撞偵測（最新階梯加分版）
+            // 2. 身體碰撞偵測（全面更新為阿蟹全新的分段乘數規則）
             for (let i = 1; i < snakeSegments.length; i++) {
                 if (nextX === snakeSegments[i].x && nextY === snakeSegments[i].y) {
                     const hitColor = bodyColors[i - 1];
@@ -204,27 +344,33 @@
                         
                         const lostCount = snakeSegments.length - i;
                         
-                        let bonusScore = 0;
+                        let multiplier = 1;
                         if (lostCount >= 1 && lostCount <= 10) {
-                            bonusScore = lostCount * 1;
-                        } else if (lostCount <= 20) {
-                            bonusScore = lostCount * 2;
-                        } else if (lostCount <= 30) { 
-                            bonusScore = lostCount * 3;
-                        } else if (lostCount <= 40) {
-                            bonusScore = lostCount * 4;
-                        }else if (lostCount <= 50) {
-                            bonusScore = lostCount * 5;
-                        }else if (lostCount <= 60) {
-                            bonusScore = lostCount * 6;
+                            multiplier = 1;
+                        } else if (lostCount >= 11 && lostCount <= 20) {
+                            multiplier = 2;
+                        } else if (lostCount >= 21 && lostCount <= 30) {
+                            multiplier = 3;
+                        } else if (lostCount >= 31 && lostCount <= 40) {
+                            multiplier = 4;
+                        } else if (lostCount >= 41 && lostCount <= 50) {
+                            multiplier = 5;
+                        } else if (lostCount >= 51 && lostCount <= 60) {
+                            multiplier = 6;
+                        } else if (lostCount >= 61) {
+                            multiplier = 7;
                         }
                         
+                        const bonusScore = lostCount * multiplier;
                         score += bonusScore;
-                        scoreDisplay.textContent = `得分: ${score}`;
+                        scoreDisplay.textContent = `分數: ${score}`;
+                        
+                        // 【核心觸發】右側顯示大大的斷尾計算公式
+                        showScorePopup(`${lostCount} X ${multiplier} = +${bonusScore}`, true);
                         
                         if (score > highScore) {
                             highScore = score;
-                            highScoreDisplay.textContent = `最高得分: ${highScore}`;
+                            highScoreDisplay.textContent = `最高分數: ${highScore}`;
                         }
 
                         snakeSegments = snakeSegments.slice(0, i);
@@ -240,11 +386,14 @@
             // 3. 移動與吃蘋果邏輯
             if (nextX === apple.x && nextY === apple.y) {
                 score++;
-                scoreDisplay.textContent = `得分: ${score}`;
+                scoreDisplay.textContent = `分數: ${score}`;
+                
+                // 【核心觸發】右側顯示吃蘋果 +1
+                showScorePopup("+1", false);
                 
                 if (score > highScore) {
                     highScore = score;
-                    highScoreDisplay.textContent = `最高得分: ${highScore}`;
+                    highScoreDisplay.textContent = `最高分數: ${highScore}`;
                 }
                 
                 const newColor = Math.random() < 0.5 ? '#ff4d4f' : '#1890ff';
@@ -256,7 +405,6 @@
                 snakeSegments.pop();
             }
 
-            // 在每一輪遊戲循環結束前，即時更新下方的長度
             lengthDisplay.textContent = `目前長度: ${snakeSegments.length}`;
 
             draw();
@@ -285,9 +433,9 @@
             }
             
             if (currentMode === 'RED') {
-                statusBadge.textContent = `【紅色時間】倒數 ${modeTimeLeft} 秒`;
+                statusBadge.textContent = `紅色時間倒數 ${modeTimeLeft} 秒`;
             } else {
-                statusBadge.textContent = `【藍色時間】倒數 ${modeTimeLeft} 秒`;
+                statusBadge.textContent = `藍色時間倒數 ${modeTimeLeft} 秒`;
             }
         }
 
@@ -296,12 +444,12 @@
                 document.body.className = 'mode-red';
                 canvas.className = 'border-red';
                 statusBadge.className = 'status-badge red';
-                statusBadge.textContent = `【紅色時間】倒數 ${modeTimeLeft} 秒`;
+                statusBadge.textContent = `紅色時間倒數 ${modeTimeLeft} 秒`;
             } else {
                 document.body.className = 'mode-blue';
                 canvas.className = 'border-blue';
                 statusBadge.className = 'status-badge blue';
-                statusBadge.textContent = `【藍色時間】倒數 ${modeTimeLeft} 秒`;
+                statusBadge.textContent = `藍色時間倒數 ${modeTimeLeft} 秒`;
             }
         }
 
@@ -326,7 +474,7 @@
                     ctx.font = `${gridSize}px Arial`;
                     ctx.textAlign = 'left';
                     ctx.textBaseline = 'top';
-                    ctx.fillText('🐱', part.x, part.y);
+                    ctx.fillText('🐸', part.x, part.y);
                 } else {
                     ctx.fillStyle = bodyColors[index - 1];
                     ctx.fillRect(part.x, part.y, gridSize, gridSize);
